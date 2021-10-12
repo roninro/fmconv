@@ -22,7 +22,5 @@ pub enum Error {
     #[error("Cannot infer format. Please specify either FILE or FORMAT")]
     InferFormat,
 
-    #[error("Cannot create assets")]
-    CreatingAssets(String),
 }
 

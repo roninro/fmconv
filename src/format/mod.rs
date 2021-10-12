@@ -2,18 +2,23 @@ use std::str::FromStr;
 
 use crate::errors;
 
-// mod toml;
-// mod yaml;
+mod toml;
+mod yaml;
 
-
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Format {
     Toml,
     Yaml,
 }
 
-
 impl Format {
+    pub fn from_delim(d: &str) -> Result<Self, errors::Error> {
+        match d {
+            "+++" => Ok(Format::Toml),
+            "---" => Ok(Format::Yaml),
+            _ => Err(errors::Error::FormatName(d.to_string())),
+        }
+    }
 
     pub fn name(&self) -> &'static str {
         match *self {
@@ -22,19 +27,11 @@ impl Format {
         }
     }
 
-    pub fn extensions(&self) -> &[&'static str] {
+    pub fn delimiter(&self) -> &'static str {
         match *self {
-            Format::Toml => &["toml"],
-            Format::Yaml => &["yaml", "yml"],
+            Format::Toml => "+++",
+            Format::Yaml => "---",
         }
-    }
-
-    pub fn is_extension(&self, s: &str) -> bool {
-        self.extensions().iter().find(|&&ext| ext == s).is_some()
-    }
-
-    pub fn preferred_extension(&self) -> &'static str {
-        self.name()
     }
 }
 
@@ -46,21 +43,46 @@ impl FromStr for Format {
         match lower.as_str() {
             "toml" => Ok(Format::Toml),
             "yaml" => Ok(Format::Yaml),
-            _ => Err(errors::Error::FormatName(lower))
+            _ => Err(errors::Error::FormatName(lower)),
         }
     }
 }
 
-pub struct Frontmatter {
+pub struct FrontMatter {
     format: Format,
     pub text: String,
 }
 
+impl FrontMatter {
+    pub fn new(format: Format, text: String) -> FrontMatter {
+        FrontMatter { format, text }
+    }
 
+    pub fn convert_to(&self, format: Format) -> Result<FrontMatter, errors::Error> {
+        match format {
+            Format::Toml => self.to_toml(),
+            Format::Yaml => self.to_yaml(),
+        }
+        .map(|text| FrontMatter { text, format })
+    }
 
+    fn to_toml(&self) -> Result<String, errors::Error> {
+        let v = self.deserialize::<toml::InnerValue>(&self.text)?;
+        toml::serialize(&v)
+    }
 
+    fn to_yaml(&self) -> Result<String, errors::Error> {
+        let v = self.deserialize::<yaml::InnerValue>(&self.text)?;
+        yaml::serialize(&v)
+    }
 
-
-
-
-
+    fn deserialize<V>(&self, s: &str) -> Result<V, errors::Error>
+    where
+        V: for<'de> serde::Deserialize<'de>,
+    {
+        match self.format {
+            Format::Toml => toml::deserialize(s),
+            Format::Yaml => yaml::deserialize(s),
+        }
+    }
+}
