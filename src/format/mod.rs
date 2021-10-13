@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use serde::de;  
 use crate::errors;
 
 mod toml;
@@ -67,18 +68,19 @@ impl FrontMatter {
     }
 
     fn to_toml(&self) -> Result<String, errors::Error> {
-        let v = self.deserialize::<toml::InnerValue>(&self.text)?;
+        // let v = self.deserialize::<toml::InnerValue>(&self.text)?;
+        let v = toml::deserialize(&self.text)?;
         toml::serialize(&v)
     }
 
     fn to_yaml(&self) -> Result<String, errors::Error> {
-        let v = self.deserialize::<yaml::InnerValue>(&self.text)?;
+        // let v = self.deserialize::<yaml::InnerValue>(&self.text)?;
+        let v = yaml::deserialize(&self.text)?;
         yaml::serialize(&v)
     }
-
-    fn deserialize<V>(&self, s: &str) -> Result<V, errors::Error>
+    fn deserialize<'de, T>(&self, s: &str) -> Result<T, errors::Error>
     where
-        V: for<'de> serde::Deserialize<'de>,
+        T: de::Deserialize<'de>,
     {
         match self.format {
             Format::Toml => toml::deserialize(s),

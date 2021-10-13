@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-
+use serde::de;
 use crate::errors;
 
 pub use toml::Value as InnerValue;
@@ -9,12 +9,17 @@ pub fn serialize<V: Serialize>(v: V) -> Result<String, errors::Error> {
     Ok(toml)
 }
 
-pub fn deserialize<V>(s: &str) -> Result<V, errors::Error>
-where
-    V: for<'de> Deserialize<'de>,
-{
-    let data = toml::from_str(s).map_err(|e| errors::Error::Deserialization(e.to_string()))?;
+
+pub fn deserialize(s: &str) -> Result<InnerValue, errors::Error> {
+    let mut data: InnerValue =
+        toml::from_str(s).map_err(|e| errors::Error::Deserialization(e.to_string()))?;
+    let t_map = data.as_table_mut().unwrap();
+    for (_k, v) in t_map.iter_mut() {
+        // println!("{:?} {:?}", k, v);
+        if let InnerValue::Datetime(t) = v {
+            *v = InnerValue::String(t.to_string());
+        }
+    }
     Ok(data)
+
 }
-
-

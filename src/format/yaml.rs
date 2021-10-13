@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::errors;
 
@@ -10,10 +10,7 @@ pub fn serialize<V: Serialize>(v: V) -> Result<String, errors::Error> {
     Ok(toml)
 }
 
-pub fn deserialize<V>(s: &str) -> Result<V, errors::Error>
-where
-    V: for<'de> Deserialize<'de>,
-{
+pub fn deserialize(s: &str) -> Result<InnerValue, errors::Error> {
     let data =
         serde_yaml::from_str(s).map_err(|e| errors::Error::Deserialization(e.to_string()))?;
     Ok(data)
