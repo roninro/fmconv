@@ -1,6 +1,6 @@
 use clap::{crate_version, App, Arg};
 use std::{
-    fs::{File, OpenOptions},
+    fs::OpenOptions,
     io::{prelude::*, BufReader},
     path::Path,
     str::FromStr,
@@ -13,8 +13,8 @@ mod format;
 use errors::Error;
 use format::*;
 
-const TOML_DELIM: &'static str = "+++";
-const YAML_DELIM: &'static str = "---";
+const TOML_DELIM: &str = "+++";
+const YAML_DELIM: &str = "---";
 
 fn main() {
     let matches = App::new("Front-matter converter")
@@ -45,10 +45,10 @@ fn main() {
 fn run(f: &str, paths: Vec<&str>) -> Result<(), Error> {
     let fr = Format::from_str(f)?;
     for p in paths.into_iter() {
-        for entry in WalkDir::new(p){
+        for entry in WalkDir::new(p) {
             match entry {
                 Ok(ref entry) => {
-                    if !is_markdown(&entry) {
+                    if !is_markdown(entry) {
                         continue;
                     }
                     if let Err(e) = parse_file(entry.path(), fr) {
@@ -68,7 +68,7 @@ fn is_markdown(entry: &DirEntry) -> bool {
         .file_name()
         .to_str()
         .map(|s| {
-            if s.starts_with(".") {
+            if s.starts_with('.') {
                 return false;
             }
             if s.ends_with(".md") || s.ends_with(".markdown") {
@@ -95,7 +95,7 @@ fn parse_file(path: &Path, fr: Format) -> Result<(), Error> {
         if let Ok(line) = line {
             if !start {
                 let trim = line.trim_start();
-                if trim == "" {
+                if trim.is_empty() {
                     continue;
                 }
                 let trim_str = trim.to_string();
@@ -135,13 +135,14 @@ fn parse_file(path: &Path, fr: Format) -> Result<(), Error> {
     }
 
     let infmt = Format::from_delim(delim).unwrap();
-    let fm = FrontMatter::new(infmt, front_matter);
 
     if fr == Format::Toml {
         contents.push_str(TOML_DELIM);
         contents.push('\n');
     }
-    let fmtext = fm.convert_to(fr)?.text;
+    
+    let fmtext = format::convert_to(&front_matter, infmt, fr)?;
+    
     contents.push_str(&fmtext);
     contents.push_str(fr.delimiter());
     contents.push('\n');
